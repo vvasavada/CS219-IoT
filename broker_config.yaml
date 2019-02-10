@@ -1,0 +1,17 @@
+listeners:
+  default:
+    type: tcp
+    bind: 0.0.0.0:8883
+    ssl: on
+    cafile: ca.crt
+    certfile: server.crt
+    keyfile: server.key
+sys_interval: 60
+timeout-disconnect-delay: 2
+auth:
+  allow-anonymous: true
+plugins:
+  - auth_file
+  - auth_anonymous
+topic-check:
+  enabled: False
