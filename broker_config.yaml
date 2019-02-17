@@ -9,9 +9,8 @@ listeners:
 sys_interval: 60
 timeout-disconnect-delay: 2
 auth:
-  allow-anonymous: true
-plugins:
-  - auth_file
-  - auth_anonymous
+  password-file: passwd
+  plugins:
+    - auth_file
 topic-check:
   enabled: False
