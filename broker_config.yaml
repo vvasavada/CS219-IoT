@@ -10,7 +10,7 @@ sys_interval: 60
 timeout-disconnect-delay: 2
 auth:
   password-file: passwd
-  plugins:
-    - auth_file
 topic-check:
   enabled: False
+persistence:
+  file: test.db 
