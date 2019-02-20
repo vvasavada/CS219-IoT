@@ -6,7 +6,6 @@ from hbmqtt.broker import Broker
 from hbmqtt.version import get_version
 from docopt import docopt
 from hbmqtt.utils import read_yaml_config
-import pkg_resources
 logger = logging.getLogger(__name__)
 
 
@@ -14,11 +13,6 @@ def main(*args, **kwargs):
     if sys.version_info[:2] < (3, 4):
         logger.fatal("Error: Python 3.4+ is required")
         sys.exit(-1)
-
-    distribution = pkg_resources.Distribution(__file__)
-    entry_point = pkg_resources.EntryPoint.parse('persistence = hbmqtt.plugins.persistence:SQLitePlugin', dist=distribution)
-    distribution._ep_map = {'hbmqtt.plugins': {'persistence': entry_point}}
-    pkg_resources.working_set.add(distribution)
 
     formatter = "[%(asctime)s] :: %(levelname)s - %(message)s"
     level = logging.DEBUG
