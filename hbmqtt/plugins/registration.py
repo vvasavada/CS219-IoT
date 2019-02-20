@@ -4,7 +4,7 @@ from passlib.hash import sha256_crypt
 
 class RegistrationPlugin:
     def __init__(self, context):
-        self.content = context
+        self.context = context
         self._users = dict()
         try:
             self.auth_config = self.context.config['auth']
