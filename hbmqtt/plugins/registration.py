@@ -34,16 +34,15 @@ class RegistrationPlugin:
     @asyncio.coroutine
     def register(self, *args, **kwargs):
         self._read_password_file()
-        username = kwargs.get('username', None)
-        password = kwargs.get('password', None)
+        topic = kwargs.get('topic', None)
+        username = topic.split('/')[1]
+        password = topic.split('/')[2]
         if username in self._users:
             self.context.logger.debug("Registration failed: user already exists")
-        password_file = self.auth_config.get('passwordifile', None)
-        if password_file:
-            with open(password_file, 'a+') as f:
-                pwd_hash = sha256_crypt.hash(password)
-                f.write(username + ':' + pwd_hash)
-                self._users[username] = pwd_hash
-        else:
-            self.context.logger.debug("Configuration parameter 'password_file' not found")
-
+            return False
+        password_file = self.auth_config.get('password-file', None)
+        with open(password_file, 'a+') as f:
+            pwd_hash = sha256_crypt.hash(password)
+            f.write(username + ':' + pwd_hash + '\n')
+            self._users[username] = pwd_hash
+        return True

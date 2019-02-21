@@ -489,13 +489,33 @@ class Broker:
                     if "#" in app_message.topic or "+" in app_message.topic:
                         self.logger.warning("[MQTT-3.3.2-2] - %s invalid TOPIC sent in PUBLISH message, closing connection" % client_session.client_id)
                         break
-                    yield from self.plugins_manager.fire_event(EVENT_BROKER_MESSAGE_RECEIVED,
-                                                               client_id=client_session.client_id,
-                                                               message=app_message)
-                    yield from self._broadcast_message(client_session, app_message.topic, app_message.data)
-                    if app_message.publish_packet.retain_flag:
-                        self.retain_message(client_session, app_message.topic, app_message.data, app_message.qos)
-                    wait_deliver = asyncio.Task(handler.mqtt_deliver_next_message(), loop=self._loop)
+                    permitted = yield from self.topic_filtering(client_session, topic=app_message.topic)
+                    if not permitted:
+                        return 0x80
+
+                    if "registration" in app_message.topic:
+                        registered = yield from self.register(topic=app_message.topic)
+                        #disconnect_waiter.cancel()
+                        #subscribe_waiter.cancel()
+                        #unsubscribe_waiter.cancel()
+                        #wait_deliver.cancel()
+
+                        #self.logger.debug("%s Client disconnected" % client_session.client_id)
+                        #server.release_connection()
+
+
+                        #yield from writer.close()
+                        #server.release_connection() # Delete client from connection list
+                        #return
+                    else:
+
+                        yield from self.plugins_manager.fire_event(EVENT_BROKER_MESSAGE_RECEIVED,
+                                                                   client_id=client_session.client_id,
+                                                                   message=app_message)
+                        yield from self._broadcast_message(client_session, app_message.topic, app_message.data)
+                        if app_message.publish_packet.retain_flag:
+                            self.retain_message(client_session, app_message.topic, app_message.data, app_message.qos)
+                        wait_deliver = asyncio.Task(handler.mqtt_deliver_next_message(), loop=self._loop)
             except asyncio.CancelledError:
                 self.logger.debug("Client loop cancelled")
                 break
@@ -527,6 +547,23 @@ class Broker:
             yield from handler.stop()
         except Exception as e:
             self.logger.error(e)
+
+    @asyncio.coroutine
+    def register(self, topic):
+        returns = yield from self.plugins_manager.map_plugin_coro(
+                "register",
+                topic=topic,
+                filter_plugins='registration')
+        reg_result = True
+        if returns:
+            for plugin in returns:
+                res = returns[plugin]
+                if res is False:
+                    reg_result = False
+                    self.logger.debug("Registration failed due to '%s' plugin result: %s" % (plugin.name, res))
+                else:
+                    self.logger.debug("'%s' plugin result: %s" % (plugin.name, res))
+        return reg_result
 
     @asyncio.coroutine
     def authenticate(self, session: Session, listener):

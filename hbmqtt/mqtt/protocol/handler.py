@@ -119,10 +119,10 @@ class ProtocolHandler:
         if self._keepalive_task:
             self._keepalive_task.cancel()
         self.logger.debug("waiting for tasks to be stopped")
-        if not self._reader_task.done():
-            self._reader_task.cancel()
-            yield from asyncio.wait(
-                [self._reader_stopped.wait()], loop=self._loop)
+        #if not self._reader_task.done():
+        #    self._reader_task.cancel()
+        #    yield from asyncio.wait(
+        #        [self._reader_stopped.wait()], loop=self._loop)
         self.logger.debug("closing writer")
         try:
             yield from self.writer.close()
