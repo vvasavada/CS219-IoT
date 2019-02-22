@@ -15,11 +15,6 @@ topic-check:
   plugins:
     - topic_acl
   acl:
-    anonymous:
-      - registration/+/+
-    test1:
-      - a/b
-    test2:
-      - a/b
+    file: acl_config.yaml
 persistence:
   file: test.db 
