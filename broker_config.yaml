@@ -11,7 +11,7 @@ timeout-disconnect-delay: 2
 auth:
   password-file: passwd
 topic-check:
-  enabled: False
+  enabled: True
   plugins:
     - topic_acl
   acl:

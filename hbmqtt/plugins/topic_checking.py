@@ -6,13 +6,18 @@ class BaseTopicPlugin:
         self.context = context
         try:
             self.topic_config = self.context.config['topic-check']
+            self.enabled = self.topic_config['enabled']
         except KeyError:
             self.context.logger.warning("'topic-check' section not found in context configuration")
 
     def topic_filtering(self, *args, **kwargs):
         if not self.topic_config:
             # auth config section not found
-            self.context.logger.warning("'auth' section not found in context configuration")
+            self.context.logger.warning("'topic-check' section not found in context configuration")
+            return False
+        if not self.enabled:
+            # enabled flag false
+            self.context.logger.warning("'topic-check' disabled in context configuration")
             return False
         return True
 
@@ -34,8 +39,8 @@ class TopicTabooPlugin(BaseTopicPlugin):
                 return True
             else:
                 return False
-        return filter_result
-
+        else:
+            return True
 
 class TopicAccessControlListPlugin(BaseTopicPlugin):
     def __init__(self, context):
@@ -72,6 +77,7 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
                 username = session.username
                 if username is None:
                     username = 'anonymous'
+                self.context.logger.debug(f"topic_check: checking ACL for topic {req_topic} for user {username}")
                 acl_file = self.topic_config['acl'].get('file', None)
                 if not acl_file:
                     self.context.logger.warning("'file' acl parameter not found")
@@ -87,3 +93,5 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
                     return False
             else:
                 return False
+        else:
+            return True

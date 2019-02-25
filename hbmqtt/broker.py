@@ -493,20 +493,8 @@ class Broker:
                     if not permitted:
                         return 0x80
 
-                    if "registration" in app_message.topic:
-                        registered = yield from self.register(topic=app_message.topic)
-                        #disconnect_waiter.cancel()
-                        #subscribe_waiter.cancel()
-                        #unsubscribe_waiter.cancel()
-                        #wait_deliver.cancel()
-
-                        #self.logger.debug("%s Client disconnected" % client_session.client_id)
-                        #server.release_connection()
-
-
-                        #yield from writer.close()
-                        #server.release_connection() # Delete client from connection list
-                        #return
+                    if app_message.topic == "registration":
+                        registered = yield from self.register(data=app_message.data)
                     else:
 
                         yield from self.plugins_manager.fire_event(EVENT_BROKER_MESSAGE_RECEIVED,
@@ -549,10 +537,10 @@ class Broker:
             self.logger.error(e)
 
     @asyncio.coroutine
-    def register(self, topic):
+    def register(self, data):
         returns = yield from self.plugins_manager.map_plugin_coro(
                 "register",
-                topic=topic,
+                data=data,
                 filter_plugins='registration')
         reg_result = True
         if returns:
@@ -563,6 +551,11 @@ class Broker:
                     self.logger.debug("Registration failed due to '%s' plugin result: %s" % (plugin.name, res))
                 else:
                     self.logger.debug("'%s' plugin result: %s" % (plugin.name, res))
+
+        if reg_result:
+            yield from self.plugins_manager.map_plugin_coro(
+                    "write_password_file",
+                    filter_plugins='registration')
         return reg_result
 
     @asyncio.coroutine
@@ -630,7 +623,7 @@ class Broker:
                     self.logger.debug("Topic filtering failed due to '%s' plugin result: %s" % (plugin.name, res))
                 else:
                     self.logger.debug("'%s' plugin result: %s" % (plugin.name, res))
-        # If all plugins returned True, authentication is success
+        # If all plugins returned True, acl is success
         return topic_result
 
     def retain_message(self, source_session, topic_name, data, qos=None):

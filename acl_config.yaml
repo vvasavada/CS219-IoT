@@ -1,6 +1,6 @@
 acl:
     anonymous:
-      - registration/+/+
+      - registration
     test1:
       - a/b
     test2:
