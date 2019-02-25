@@ -52,3 +52,10 @@ def read_yaml_config(config_file):
     except yaml.YAMLError as exc:
         logger.error("Invalid config_file %s: %s" % (config_file, exc))
     return config
+
+def write_yaml_config(data, config_file):
+    try:
+        with open(config_file, 'w+') as stream:
+            yaml.dump(data, stream, default_flow_style=False)
+    except yaml.YAMLError as exc:
+        logger.error("Error writing YAML to %s: %s" % (config_file, exc))

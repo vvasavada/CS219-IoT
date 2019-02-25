@@ -44,6 +44,8 @@ EVENT_BROKER_CLIENT_SUBSCRIBED = 'broker_client_subscribed'
 EVENT_BROKER_CLIENT_UNSUBSCRIBED = 'broker_client_unsubscribed'
 EVENT_BROKER_MESSAGE_RECEIVED = 'broker_message_received'
 
+DEFAULT_USER_TOPICS = ['config/#']
+
 
 class BrokerException(BaseException):
     pass
@@ -494,7 +496,9 @@ class Broker:
                         return 0x80
 
                     if app_message.topic == "registration":
-                        registered = yield from self.register(data=app_message.data)
+                        registered_username = yield from self.register(data=app_message.data)
+                        if (registered_username):
+                            yield from self.add_acl(registered_username, self.get_default_user_topics(registered_username))
                     else:
 
                         yield from self.plugins_manager.fire_event(EVENT_BROKER_MESSAGE_RECEIVED,
@@ -542,15 +546,16 @@ class Broker:
                 "register",
                 data=data,
                 filter_plugins='registration')
-        reg_result = True
+        reg_result = None
         if returns:
             for plugin in returns:
                 res = returns[plugin]
-                if res is False:
-                    reg_result = False
-                    self.logger.debug("Registration failed due to '%s' plugin result: %s" % (plugin.name, res))
+                if res is not None:
+                    reg_result = res
+                    self.logger.debug("'%s' plugin result: %s" % (plugin.name, True))
                 else:
-                    self.logger.debug("'%s' plugin result: %s" % (plugin.name, res))
+                    self.logger.debug("Registration failed due to '%s' plugin result: %s" % (plugin.name, False))
+                    
 
         if reg_result:
             yield from self.plugins_manager.map_plugin_coro(
@@ -625,6 +630,25 @@ class Broker:
                     self.logger.debug("'%s' plugin result: %s" % (plugin.name, res))
         # If all plugins returned True, acl is success
         return topic_result
+
+    @asyncio.coroutine
+    def add_acl(self, username, topics):
+        returns = yield from self.plugins_manager.map_plugin_coro(
+            "add_user_acl",
+            username=username,
+            topics=topics,
+            filter_plugins='topic_acl')
+        topic_result = True
+        if returns:
+            for plugin in returns:
+                res = returns[plugin]
+                if res is False:
+                    topic_result = False
+        # If all plugins returned True, acl is success
+        return topic_result
+
+    def get_default_user_topics(self, username):
+        return list(map(lambda t: f"{username}/{t}", DEFAULT_USER_TOPICS))
 
     def retain_message(self, source_session, topic_name, data, qos=None):
         if data is not None and data != b'':

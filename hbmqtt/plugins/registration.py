@@ -16,6 +16,7 @@ class RegistrationPlugin:
             self.password_file = self.auth_config['password-file']
         except KeyError:
             self.context.logger.error("Registration plugin: no 'password-file' parameter defined")
+            os.exit(1)
 
         self._read_password_file()
 
@@ -36,7 +37,7 @@ class RegistrationPlugin:
             except FileNotFoundError:
                 self.context.logger.warning("Password file %s not found" % self.password_file)
         else:
-            self.context.logger.debug("Configuration parameter 'password_file' not found")
+            self.context.logger.error("Configuration parameter 'password_file' not found")
 
     @asyncio.coroutine
     def write_password_file(self, *args, **kwargs):
@@ -56,24 +57,24 @@ class RegistrationPlugin:
     def register(self, *args, **kwargs):
         if 'data' not in kwargs:
             self.context.logger.warning("Registration failed: no data provided")
-            return False
+            return None
 
         data = str(kwargs['data'], 'UTF-8')
         if ('/' not in data):
             self.context.logger.error("Registration failed: invalid registration format")
-            return False
+            return None
 
         username = data.split('/')[0]
         password = data.split('/')[1]
         self.context.logger.info(f"Registering user {username}...")
         if username in self._users:
             self.context.logger.debug("Registration failed: user already exists")
-            return False
+            return None
 
         pwd_hash = sha256_crypt.hash(password)
         self._users[username] = pwd_hash
         self.context.logger.info(f"Registered user {username}")
-        return True
+        return username
 
     @asyncio.coroutine
     def on_broker_post_shutdown(self, *args, **kwargs):

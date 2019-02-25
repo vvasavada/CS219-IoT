@@ -1,5 +1,6 @@
 import asyncio
-from hbmqtt.utils import read_yaml_config
+from hbmqtt.utils import read_yaml_config, write_yaml_config
+import os
 
 class BaseTopicPlugin:
     def __init__(self, context):
@@ -45,6 +46,43 @@ class TopicTabooPlugin(BaseTopicPlugin):
 class TopicAccessControlListPlugin(BaseTopicPlugin):
     def __init__(self, context):
         super().__init__(context)
+        if 'file' not in self.topic_config['acl']:
+            self.context.logger.error("ACL plugin: no 'file' parameter defined")
+            os.exit(1)
+
+        self.acl_file = self.topic_config['acl']['file']
+        self.acl = {'anonymous': ['registration']}
+
+        self.read_acl_file()
+
+    def read_acl_file(self):
+        if not self.acl_file:
+            self.context.logger.warning("'file' acl parameter not found")
+            return
+
+        if not os.path.isfile(self.acl_file):
+            self.context.logger.warning("acl file does not exist")
+            return
+
+        self.context.logger.debug("ACL plugin: reading ACL")
+
+        acl_configs = read_yaml_config(self.acl_file)
+        try:
+            self.acl = acl_configs['acl']
+        except:
+            self.context.logger.error("ACL plugin: invalid ACL file format")
+
+        self.context.logger.info(f"ACL plugin: read ACL for {len(self.acl)} users")
+
+    @asyncio.coroutine
+    def write_acl_file(self):
+        if not self.acl_file:
+            self.context.logger.warning("'file' acl parameter not found")
+            return
+
+        data = {'acl': self.acl}
+        self.context.logger.debug("ACL plugin: writing ACL")
+        write_yaml_config(data, self.acl_file)
 
     @staticmethod
     def topic_ac(topic_requested, topic_allowed):
@@ -78,12 +116,7 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
                 if username is None:
                     username = 'anonymous'
                 self.context.logger.debug(f"topic_check: checking ACL for topic {req_topic} for user {username}")
-                acl_file = self.topic_config['acl'].get('file', None)
-                if not acl_file:
-                    self.context.logger.warning("'file' acl parameter not found")
-                    return False
-                acl_configs = read_yaml_config(acl_file)
-                allowed_topics = acl_configs['acl'].get(username, None)
+                allowed_topics = self.acl.get(username, None)
                 if allowed_topics:
                     for allowed_topic in allowed_topics:
                         if self.topic_ac(req_topic, allowed_topic):
@@ -95,3 +128,26 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
                 return False
         else:
             return True
+
+    @asyncio.coroutine
+    def add_user_acl(self, *args, **kwargs):
+        username = kwargs.get('username', "")
+        topics = kwargs.get('topics', [])
+        if (len(topics) == 0 or len(username) == 0):
+            self.context.logger.warning(f"topic_check: invalid format in adding ACL for topics {topics} for user {username}")
+            return False
+
+        if username not in self.acl:
+            self.acl[username] = topics
+        else:
+            self.acl[username].extend(topics)
+
+        yield from self.write_acl_file()
+
+        self.context.logger.info(f"topic_check: added ACL for topics {topics} for user {username}")
+
+        return True
+
+    @asyncio.coroutine
+    def on_broker_post_shutdown(self, *args, **kwargs):
+        yield from self.write_acl_file()

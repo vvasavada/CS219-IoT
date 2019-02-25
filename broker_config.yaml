@@ -14,6 +14,7 @@ topic-check:
   enabled: True
   plugins:
     - topic_acl
+    - topic_taboo
   acl:
     file: acl_config.yaml
 persistence:
