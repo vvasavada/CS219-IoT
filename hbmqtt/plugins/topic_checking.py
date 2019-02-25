@@ -137,10 +137,20 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
             self.context.logger.warning(f"topic_check: invalid format in adding ACL for topics {topics} for user {username}")
             return False
 
+        # so we can do an atomic modification in case of taken topics
+        topics_to_add = []
+
         if username not in self.acl:
             self.acl[username] = topics
         else:
-            self.acl[username].extend(topics)
+            for topic in topics:
+                if (topic in self.acl[username]):
+                    self.context.logger.error(f"topic_check: topic {topic} already exists for user {username}")
+                    return False
+                else:
+                    topics_to_add.append(topic)
+            
+            self.acl[username].extend(topics_to_add)
 
         yield from self.write_acl_file()
 

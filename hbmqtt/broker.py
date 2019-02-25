@@ -44,7 +44,10 @@ EVENT_BROKER_CLIENT_SUBSCRIBED = 'broker_client_subscribed'
 EVENT_BROKER_CLIENT_UNSUBSCRIBED = 'broker_client_unsubscribed'
 EVENT_BROKER_MESSAGE_RECEIVED = 'broker_message_received'
 
-DEFAULT_USER_TOPICS = ['config/#']
+# username will be appended before each of these
+# config topic is to modify user properties
+# allow free usage of anything under the user's iot namespace
+DEFAULT_USER_TOPICS = ['config/#', 'iot/#']
 
 
 class BrokerException(BaseException):
@@ -499,6 +502,9 @@ class Broker:
                         registered_username = yield from self.register(data=app_message.data)
                         if (registered_username):
                             yield from self.add_acl(registered_username, self.get_default_user_topics(registered_username))
+                    elif app_message.topic.startswith(f"{client_session.username}/config"):
+                        #TODO: add config command handling
+                        pass
                     else:
 
                         yield from self.plugins_manager.fire_event(EVENT_BROKER_MESSAGE_RECEIVED,
