@@ -46,8 +46,7 @@ EVENT_BROKER_MESSAGE_RECEIVED = 'broker_message_received'
 
 # username will be appended before each of these
 # config topic is to modify user properties
-# allow free usage of anything under the user's iot namespace
-DEFAULT_USER_TOPICS = ['config/#', 'iot/#']
+DEFAULT_USER_TOPICS = ['config/#']
 
 
 class BrokerException(BaseException):
@@ -494,18 +493,27 @@ class Broker:
                     if "#" in app_message.topic or "+" in app_message.topic:
                         self.logger.warning("[MQTT-3.3.2-2] - %s invalid TOPIC sent in PUBLISH message, closing connection" % client_session.client_id)
                         break
-                    permitted = yield from self.topic_filtering(client_session, topic=app_message.topic)
-                    if not permitted:
-                        return 0x80
-
                     if app_message.topic == "registration":
-                        registered_username = yield from self.register(data=app_message.data)
-                        if (registered_username):
-                            yield from self.add_acl(registered_username, self.get_default_user_topics(registered_username))
+                        if client_session.username:
+                            self.logger.error("User not anonymous. Registration is only allowed for anonymous users")
+                            break
+                        registered_username, registered_device = yield from self.register(data=app_message.data)
+                        if (registered_username and registered_device):
+                            topics = dict()
+                            topics['acl_publish_all'] = self.get_default_user_topics(registered_username) + [f"{registered_username}/{registered_device}/#"]
+                            topics['acl_subscribe_all'] = []
+                            topics['acl_publish'] = {registered_device : []}
+                            topics['acl_subscribe'] = {registered_device: [f"{registered_username}/{registered_device}/#"]}
+                            yield from self.add_acl(registered_username, registered_device, topics)
+                        break
                     elif app_message.topic.startswith(f"{client_session.username}/config"):
                         #TODO: add config command handling
                         pass
+                        break
                     else:
+                        permitted = yield from self.topic_filtering(client_session, topic=app_message.topic, publish=True)
+                        if not permitted:
+                            return 0x8
 
                         yield from self.plugins_manager.fire_event(EVENT_BROKER_MESSAGE_RECEIVED,
                                                                    client_id=client_session.client_id,
@@ -603,7 +611,7 @@ class Broker:
         return auth_result
 
     @asyncio.coroutine
-    def topic_filtering(self, session: Session, topic):
+    def topic_filtering(self, session: Session, topic, publish=False):
         """
         This method call the topic_filtering method on registered plugins to check that the subscription is allowed.
         User is considered allowed if all plugins called return True.
@@ -624,6 +632,7 @@ class Broker:
             "topic_filtering",
             session=session,
             topic=topic,
+            publish=publish,
             filter_plugins=topic_plugins)
         topic_result = True
         if returns:
@@ -638,10 +647,11 @@ class Broker:
         return topic_result
 
     @asyncio.coroutine
-    def add_acl(self, username, topics):
+    def add_acl(self, username, device, topics):
         returns = yield from self.plugins_manager.map_plugin_coro(
             "add_user_acl",
             username=username,
+            device=device,
             topics=topics,
             filter_plugins='topic_acl')
         topic_result = True
@@ -681,7 +691,7 @@ class Broker:
                         # [MQTT-4.7.1-3] + wildcard character must occupy entire level
                         return 0x80
             # Check if the client is authorised to connect to the topic
-            permitted = yield from self.topic_filtering(session, topic=a_filter)
+            permitted = yield from self.topic_filtering(session, topic=a_filter, publish=False)
             if not permitted:
                 return 0x80
             qos = subscription[1]

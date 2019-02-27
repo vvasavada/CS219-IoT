@@ -1,6 +1,0 @@
-acl:
-  anonymous:
-  - registration
-  vaibhavagg2:
-  - vaibhavagg2/config/#
-  - vaibhavagg2/iot/#

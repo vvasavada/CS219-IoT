@@ -1,0 +1,14 @@
+vaibhavagg2:
+  acl_publish:
+    device1: []
+  acl_publish_all:
+  - vaibhavagg2/config/#
+  - vaibhavagg2/device1/#
+  acl_subscribe:
+    device1:
+    - vaibhavagg2/device1/#
+  acl_subscribe_all: []
+  devices:
+    device1:
+      key: $5$rounds=535000$zlXB..v4iiYnVDcy$owPXVAa.zgqFEXTMdw7GttCr3EEOoa2URfgqyKUdQN2
+  password: $5$rounds=535000$E5ytlw/WNm8SGCpo$NQJ5t/tmC141yn.q5pua9u8g6DDroRmO8c49x9lL8GD

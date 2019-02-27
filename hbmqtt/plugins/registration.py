@@ -2,6 +2,7 @@ import logging
 import asyncio
 from passlib.hash import sha256_crypt
 import os
+from hbmqtt.utils import read_yaml_config, write_yaml_config
 
 class RegistrationPlugin:
     def __init__(self, context):
@@ -22,22 +23,10 @@ class RegistrationPlugin:
 
 
     def _read_password_file(self):
-        if self.password_file:
-            try:
-                with open(self.password_file) as f:
-                    self.context.logger.debug("Reading user database from %s" % self.password_file)
-                    for l in f:
-                        line = l.strip()
-                        if not line.startswith('#'):    # Allow comments in files
-                            (username, pwd_hash) = line.split(sep=":", maxsplit=3)
-                            if username:
-                                self._users[username] = pwd_hash
-                                self.context.logger.debug("user %s , hash=%s" % (username, pwd_hash))
-                self.context.logger.debug("%d user(s) read from file %s" % (len(self._users), self.password_file))
-            except FileNotFoundError:
-                self.context.logger.warning("Password file %s not found" % self.password_file)
-        else:
-            self.context.logger.error("Configuration parameter 'password_file' not found")
+        try:
+            self._users = read_yaml_config(self.password_file)
+        except:
+            pass
 
     @asyncio.coroutine
     def write_password_file(self, *args, **kwargs):
@@ -48,33 +37,40 @@ class RegistrationPlugin:
             os.remove(password_file_backup)
         if (os.path.isfile(self.password_file)):
             os.rename(self.password_file, password_file_backup)
-        with open(self.password_file, 'w+') as f:
-            for username, pwd_hash in self._users.items():
-                f.write(username + ':' + pwd_hash + '\n')
+        write_yaml_config(self._users, self.password_file)
         self.context.logger.debug("Registration user persistence: success")
 
     @asyncio.coroutine
     def register(self, *args, **kwargs):
         if 'data' not in kwargs:
             self.context.logger.warning("Registration failed: no data provided")
-            return None
+            return None, None
 
         data = str(kwargs['data'], 'UTF-8')
-        if ('/' not in data):
+        try:
+            username = data.split()[0].split('/')[0]
+            password = data.split()[0].split('/')[1]
+            deviceid = data.split()[1].split('/')[0]
+            devicekey = data.split()[1].split('/')[1]
+            self.context.logger.info(f"Registering user {username}...")
+        except IndexError:
             self.context.logger.error("Registration failed: invalid registration format")
-            return None
-
-        username = data.split('/')[0]
-        password = data.split('/')[1]
-        self.context.logger.info(f"Registering user {username}...")
+            return None, None
         if username in self._users:
             self.context.logger.debug("Registration failed: user already exists")
-            return None
+            return None, None
 
         pwd_hash = sha256_crypt.hash(password)
-        self._users[username] = pwd_hash
+        self._users[username] = {'password': pwd_hash}
+
+        key_hash = sha256_crypt.hash(devicekey)
+        self._users[username]['devices'] = {deviceid : {'key' : key_hash}}
+        self._users[username]['acl_publish_all'] = []
+        self._users[username]['acl_subscribe_all'] = []
+        self._users[username]['acl_publish'] =  {deviceid : []}
+        self._users[username]['acl_subscribe'] = {deviceid : []}
         self.context.logger.info(f"Registered user {username}")
-        return username
+        return username, deviceid
 
     @asyncio.coroutine
     def on_broker_post_shutdown(self, *args, **kwargs):

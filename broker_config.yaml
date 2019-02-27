@@ -9,13 +9,13 @@ listeners:
 sys_interval: 60
 timeout-disconnect-delay: 2
 auth:
-  password-file: passwd
+  password-file: user_configs.yaml
 topic-check:
   enabled: True
   plugins:
     - topic_acl
     - topic_taboo
   acl:
-    file: acl_config.yaml
+    file: user_configs.yaml
 persistence:
   file: test.db 

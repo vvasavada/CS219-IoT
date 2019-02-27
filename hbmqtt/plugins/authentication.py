@@ -4,7 +4,7 @@
 import logging
 import asyncio
 from passlib.apps import custom_app_context as pwd_context
-
+from hbmqtt.utils import read_yaml_config, write_yaml_config
 
 class BaseAuthPlugin:
     def __init__(self, context):
@@ -58,35 +58,43 @@ class FileAuthPlugin(BaseAuthPlugin):
     def _read_password_file(self):
         password_file = self.auth_config.get('password-file', None)
         if password_file:
-            try:
-                with open(password_file) as f:
-                    self.context.logger.debug("Reading user database from %s" % password_file)
-                    for l in f:
-                        line = l.strip()
-                        if not line.startswith('#'):    # Allow comments in files
-                            (username, pwd_hash) = line.split(sep=":", maxsplit=3)
-                            if username:
-                                self._users[username] = pwd_hash
-                                self.context.logger.debug("user %s , hash=%s" % (username, pwd_hash))
-                self.context.logger.debug("%d user(s) read from file %s" % (len(self._users), password_file))
-            except FileNotFoundError:
-                self.context.logger.warning("Password file %s not found" % password_file)
+            self._users = read_yaml_config(password_file)
         else:
             self.context.logger.debug("Configuration parameter 'password_file' not found")
 
     @asyncio.coroutine
     def authenticate(self, *args, **kwargs):
-        self._read_password_file()
+        try:
+            self._read_password_file()
+        except:
+            self.context.logger.warning("Password file not found")
         authenticated = super().authenticate(*args, **kwargs)
         if authenticated:
             session = kwargs.get('session', None)
             if session.username:
-                hash = self._users.get(session.username, None)
-                if not hash:
+                try:
+                    username = session.username.split('-')[0]
+                    deviceid = session.username.split('-')[1]
+                    password = session.password.split('-')[0]
+                    devicekey = session.password.split('-')[1]
+                except IndexError:
+                    self.context.logger.error("Authentication failed: Credentials not in proper format")
+                    return False
+
+                pwd_hash = self._users[username]['password']
+                if not pwd_hash:
                     authenticated = False
-                    self.context.logger.debug("No hash found for user '%s'" % session.username)
+                    self.context.logger.debug("No hash found for user '%s'" % username)
                 else:
-                    authenticated = pwd_context.verify(session.password, hash)
+                    authenticated = pwd_context.verify(password, pwd_hash)
+
+                self.context.logger.debug("DEBUG " + str(self._users[username]))
+                key_hash = self._users[username]['devices'][deviceid]['key']
+                if not key_hash:
+                    authenticated = False
+                    self.context.logger.debug("No key found for device '%s'" % deviceid)
+                else:
+                    authenticated = pwd_context.verify(devicekey, key_hash)
             else:
                 return None
         return authenticated

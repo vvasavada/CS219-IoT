@@ -18,7 +18,7 @@ C = MQTTClient(config=config)
 
 @asyncio.coroutine
 def test_coro():
-    yield from C.connect('mqtts://vaibhavagg2:password@0.0.0.0:8883', cafile='ca.crt')
+    yield from C.connect('mqtts://vaibhavagg2-device1:password-device1@0.0.0.0:8883', cafile='ca.crt')
     tasks = [
         asyncio.ensure_future(C.publish('vaibhavagg2/config/topics', b'TEST MESSAGE WITH QOS_0')),
     ]
