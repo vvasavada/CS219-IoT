@@ -88,7 +88,6 @@ class FileAuthPlugin(BaseAuthPlugin):
                 else:
                     authenticated = pwd_context.verify(password, pwd_hash)
 
-                self.context.logger.debug("DEBUG " + str(self._users[username]))
                 key_hash = self._users[username]['devices'][deviceid]['key']
                 if not key_hash:
                     authenticated = False

@@ -506,14 +506,35 @@ class Broker:
                             topics['acl_subscribe'] = {registered_device: [f"{registered_username}/{registered_device}/#"]}
                             yield from self.add_acl(registered_username, registered_device, topics)
                         break
-                    elif app_message.topic.startswith(f"{client_session.username}/config"):
-                        #TODO: add config command handling
-                        pass
-                        break
+                    
                     else:
                         permitted = yield from self.topic_filtering(client_session, topic=app_message.topic, publish=True)
                         if not permitted:
                             return 0x8
+
+                        username = client_session.username.split("-")[0]
+                        if app_message.topic.startswith(f"{username}/config"):
+                            try:
+                                config_query = str(app_message.data, 'UTF-8').split(" ")
+                                callback = config_query[0]
+                                args = config_query[1:]
+
+                                if callback == "add_device": # username/config add_device deviceid devicekey
+                                    deviceid = args[0]
+                                    devicekey = args[1]
+                                    username, deviceid = yield from self.add_device(username, deviceid, devicekey)
+                                    if (username and deviceid):
+                                        topics = dict()
+                                        topics['acl_publish_all'] = [f"{username}/{deviceid}/#"]
+                                        topics['acl_subscribe_all'] = []
+                                        topics['acl_publish'] = {deviceid: []}
+                                        topics['acl_subscribe'] = {deviceid: [f"{username}/{deviceid}/#"]}
+                                        yield from self.add_acl(username, deviceid, topics)
+                                else:
+                                    pass
+                            except IndexError:
+                                self.logger.error("Wrong config callback format")
+                            break
 
                         yield from self.plugins_manager.fire_event(EVENT_BROKER_MESSAGE_RECEIVED,
                                                                    client_id=client_session.client_id,
@@ -553,6 +574,29 @@ class Broker:
             yield from handler.stop()
         except Exception as e:
             self.logger.error(e)
+
+    @asyncio.coroutine
+    def add_device(self, username, deviceid, devicekey):
+        returns = yield from self.plugins_manager.map_plugin_coro(
+                "register_device",
+                username=username,
+                deviceid=deviceid,
+                devicekey=devicekey,
+                filter_plugins='registration')
+        reg_result = False
+        if returns:
+            for plugin in returns:
+                res = returns[plugin]
+                if res:
+                    reg_result = res
+                    self.logger.debug("'%s' plugin result: %s" % (plugin.name, True))
+                else:
+                    self.logger.debug("Device registration failed due to '%s' plugin result: %s" % (plugin.name, False))
+        if reg_result:
+            yield from self.plugins_manager.map_plugin_coro(
+                    "write_password_file",
+                    filter_plugins='registration')
+        return reg_result
 
     @asyncio.coroutine
     def register(self, data):

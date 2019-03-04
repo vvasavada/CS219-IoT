@@ -43,7 +43,7 @@ class RegistrationPlugin:
     @asyncio.coroutine
     def register(self, *args, **kwargs):
         if 'data' not in kwargs:
-            self.context.logger.warning("Registration failed: no data provided")
+            self.context.logger.error("Registration failed: no data provided")
             return None, None
 
         data = str(kwargs['data'], 'UTF-8')
@@ -57,7 +57,7 @@ class RegistrationPlugin:
             self.context.logger.error("Registration failed: invalid registration format")
             return None, None
         if username in self._users:
-            self.context.logger.debug("Registration failed: user already exists")
+            self.context.logger.error("Registration failed: user already exists")
             return None, None
 
         pwd_hash = sha256_crypt.hash(password)
@@ -70,6 +70,23 @@ class RegistrationPlugin:
         self._users[username]['acl_publish'] =  {deviceid : []}
         self._users[username]['acl_subscribe'] = {deviceid : []}
         self.context.logger.info(f"Registered user {username}")
+        return username, deviceid
+
+    @asyncio.coroutine
+    def register_device(self, *args, **kwargs):
+        username = kwargs['username']
+        deviceid = kwargs['deviceid']
+        devicekey = kwargs['devicekey']
+        
+        if deviceid in self._users[username]['devices']:
+            self.context.logger.error("Device registration failed: device already exists")
+            return None, None
+
+        key_hash = sha256_crypt.hash(devicekey)
+        self._users[username]['devices'][deviceid] = {'key' : key_hash}
+        self._users[username]['acl_publish'][deviceid] = []
+        self._users[username]['acl_subscribe'][deviceid] = []
+        self.context.logger.info(f"Registed device {deviceid}")
         return username, deviceid
 
     @asyncio.coroutine
