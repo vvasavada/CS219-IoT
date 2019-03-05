@@ -53,14 +53,17 @@ class FileAuthPlugin(BaseAuthPlugin):
     def __init__(self, context):
         super().__init__(context)
         self._users = dict()
-        #self._read_password_file()
+        self._read_password_file()
 
     def _read_password_file(self):
-        password_file = self.auth_config.get('password-file', None)
-        if password_file:
-            self._users = read_yaml_config(password_file)
-        else:
-            self.context.logger.debug("Configuration parameter 'password_file' not found")
+        try:
+            password_file = self.auth_config.get('password-file', None)
+            if password_file:
+                self._users = read_yaml_config(password_file)
+            else:
+                self.context.logger.debug("Configuration parameter 'password_file' not found")
+        except FileNotFoundError:
+            pass
 
     @asyncio.coroutine
     def authenticate(self, *args, **kwargs):
@@ -81,19 +84,19 @@ class FileAuthPlugin(BaseAuthPlugin):
                     self.context.logger.error("Authentication failed: Credentials not in proper format")
                     return False
 
+                authenticated_user = False
                 pwd_hash = self._users[username]['password']
                 if not pwd_hash:
-                    authenticated = False
                     self.context.logger.debug("No hash found for user '%s'" % username)
                 else:
-                    authenticated = pwd_context.verify(password, pwd_hash)
+                    authenticated_user = pwd_context.verify(password, pwd_hash)
 
+                authenticated_device = False
                 key_hash = self._users[username]['devices'][deviceid]['key']
                 if not key_hash:
-                    authenticated = False
                     self.context.logger.debug("No key found for device '%s'" % deviceid)
                 else:
-                    authenticated = pwd_context.verify(devicekey, key_hash)
+                    authenticated_device = pwd_context.verify(devicekey, key_hash)
             else:
                 return None
-        return authenticated
+        return authenticated_user and authenticated_device

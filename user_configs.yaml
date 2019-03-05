@@ -1,20 +1,16 @@
 vaibhavagg2:
   acl_publish:
-    device1: []
-    device2: []
+    device1:
+    - vaibhavagg2/hello
   acl_publish_all:
-  - vaibhavagg2/config/#
+  - vaibhavagg2/config
   - vaibhavagg2/device1/#
-  - vaibhavagg2/device2/#
+  - vaibhavagg2/hello
   acl_subscribe:
     device1:
     - vaibhavagg2/device1/#
-    device2:
-    - vaibhavagg2/device2/#
   acl_subscribe_all: []
   devices:
     device1:
-      key: $5$rounds=535000$zlXB..v4iiYnVDcy$owPXVAa.zgqFEXTMdw7GttCr3EEOoa2URfgqyKUdQN2
-    device2:
-      key: $5$rounds=535000$yCRR11XGDWUV9i7m$0xElLE82OYhDW1C1l75Lj96OD5Oc9bX6D.B6pXjE5s4
-  password: $5$rounds=535000$E5ytlw/WNm8SGCpo$NQJ5t/tmC141yn.q5pua9u8g6DDroRmO8c49x9lL8GD
+      key: $5$rounds=535000$.Xn1A1tJ8VyScMri$bn0GPCvsjuR26WhmSAQDysBIP8ibZ0JCd3SWDBaCF/D
+  password: $5$rounds=535000$kZPynOYcTUo7g5ZH$mlaArpp3Ahqi1ceJAuuH/Ar5pVRI14qjs8Ku9ACTvT6

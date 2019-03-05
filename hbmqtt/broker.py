@@ -46,7 +46,7 @@ EVENT_BROKER_MESSAGE_RECEIVED = 'broker_message_received'
 
 # username will be appended before each of these
 # config topic is to modify user properties
-DEFAULT_USER_TOPICS = ['config/#']
+DEFAULT_USER_TOPICS = ['config']
 
 
 class BrokerException(BaseException):
@@ -510,10 +510,11 @@ class Broker:
                     else:
                         permitted = yield from self.topic_filtering(client_session, topic=app_message.topic, publish=True)
                         if not permitted:
-                            return 0x8
+                            return 0x80
 
                         username = client_session.username.split("-")[0]
-                        if app_message.topic.startswith(f"{username}/config"):
+                        client_deviceid = client_session.username.split("-")[0]
+                        if app_message.topic == f"{username}/config":
                             try:
                                 config_query = str(app_message.data, 'UTF-8').split(" ")
                                 callback = config_query[0]
@@ -530,6 +531,33 @@ class Broker:
                                         topics['acl_publish'] = {deviceid: []}
                                         topics['acl_subscribe'] = {deviceid: [f"{username}/{deviceid}/#"]}
                                         yield from self.add_acl(username, deviceid, topics)
+                                elif callback == "add_acl": # username/config add_acl publish/subscribe all/deviceid topic
+                                    pubsub = args[0]
+                                    deviceid = args[1]
+                                    topic = args[2]
+
+                                    if (topic.split('/')[0] != username):
+                                        self.logger.warning("User attempting write to ACL outside namespace")
+                                        break
+
+                                    # TODO: what should the perms for this be?
+                                    topics = dict()
+                                    topics['acl_publish_all'] = []
+                                    topics['acl_subscribe_all'] = []
+                                    topics['acl_publish'] = {}
+                                    topics['acl_subscribe'] = {}
+                                    if (pubsub == "publish"):
+                                        if (deviceid == "all"):
+                                            topics['acl_publish_all'].append(topic)
+                                        else:
+                                            topics['acl_publish'][deviceid] = [topic]
+                                    elif (pubsub == "subscribe"):
+                                        if (deviceid == "all"):
+                                            topics['acl_subscribe_all'].append(topic)
+                                        else:
+                                            topics['acl_subscribe'][deviceid] = [topic]
+
+                                    yield from self.add_acl(username, client_deviceid, topics)
                                 else:
                                     pass
                             except IndexError:

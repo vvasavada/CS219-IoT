@@ -60,6 +60,8 @@ class RegistrationPlugin:
             self.context.logger.error("Registration failed: user already exists")
             return None, None
 
+        self._read_password_file()
+
         pwd_hash = sha256_crypt.hash(password)
         self._users[username] = {'password': pwd_hash}
 

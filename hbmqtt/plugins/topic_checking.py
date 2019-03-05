@@ -53,6 +53,14 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
         self.acl_file = self.topic_config['acl']['file']
         self._users = dict()
 
+        self._read_acl_file()
+
+    def _read_acl_file(self):
+        try:
+            self._users = read_yaml_config(self.acl_file)
+        except FileNotFoundError:
+            pass
+
     @asyncio.coroutine
     def write_acl_file(self):
         if not self.acl_file:
@@ -88,7 +96,8 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
 
     @asyncio.coroutine
     def topic_filtering(self, *args, **kwargs):
-        if len(self._users.keys()) == 0:
+        self._read_acl_file()
+        if len(self._users) == 0:
             return True
         filter_result = super().topic_filtering(*args, **kwargs)
         if filter_result:
@@ -101,15 +110,15 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
                 else:
                     try:
                         username = session.username.split('-')[0]
-                        deviceid = session.username/split('-')[1]
+                        deviceid = session.username.split('-')[1]
                     except IndexError:
                         self.context.logger.error("topic_check failed: invalid username-deviceid format")
                         return False
                 self.context.logger.debug(f"topic_check: checking ACL for topic {req_topic} for user {username}")
                 if publish:
-                    allowed_topics = self._users[username]['acl_publish_all'].extend(self._users[username]['acl_publish'][deviceid])
+                    allowed_topics = self._users[username]['acl_publish_all'] + self._users[username]['acl_publish'][deviceid]
                 else:
-                    allowed_topics = self._users[username]['acl_subscribe_all'].extend(self._users[username]['acl_subscribe'][deviceid])
+                    allowed_topics = self._users[username]['acl_subscribe_all'] + self._users[username]['acl_subscribe'][deviceid]
                 if allowed_topics:
                     for allowed_topic in allowed_topics:
                         if self.topic_ac(req_topic, allowed_topic):
@@ -124,8 +133,9 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
 
     @asyncio.coroutine
     def add_user_acl(self, *args, **kwargs):
-        if len(self._users.keys()) == 0:
-            self._users = read_yaml_config(self.acl_file)
+        self._read_acl_file()
+        if len(self._users) == 0:
+            return False
         username = kwargs.get('username', "")
         device = kwargs.get('device', "")
         topics = kwargs.get('topics', {})
