@@ -40,9 +40,9 @@ class AnonymousAuthPlugin(BaseAuthPlugin):
                     authenticated = True if session.username else False
                     if self.context.logger.isEnabledFor(logging.DEBUG):
                         if authenticated:
-                            self.context.logger.debug("Authentication success: session has a non empty username")
+                            self.context.logger.info("Authentication success: session has a non empty username")
                         else:
-                            self.context.logger.debug("Authentication failure: session has an empty username")
+                            self.context.logger.info("Authentication failure: session has an empty username")
                 except KeyError:
                     self.context.logger.warning("Session informations not available")
                     authenticated = False
@@ -87,14 +87,14 @@ class FileAuthPlugin(BaseAuthPlugin):
                 authenticated_user = False
                 pwd_hash = self._users[username]['password']
                 if not pwd_hash:
-                    self.context.logger.debug("No hash found for user '%s'" % username)
+                    self.context.logger.error("No hash found for user '%s'" % username)
                 else:
                     authenticated_user = pwd_context.verify(password, pwd_hash)
 
                 authenticated_device = False
                 key_hash = self._users[username]['devices'][deviceid]['key']
                 if not key_hash:
-                    self.context.logger.debug("No key found for device '%s'" % deviceid)
+                    self.context.logger.error("No key found for device '%s'" % deviceid)
                 else:
                     authenticated_device = pwd_context.verify(devicekey, key_hash)
             else:

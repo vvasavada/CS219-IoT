@@ -190,7 +190,7 @@ class TopicAccessControlListPlugin(BaseTopicPlugin):
                             topics_sub_to_add[device].append(topic)
                         else:
                             topics_sub_to_add[device] = [topic]
-            
+
             self._users[username]['acl_publish_all'].extend(topics_pub_all_to_add)
             self._users[username]['acl_subscribe_all'].extend(topics_sub_all_to_add)
 

@@ -537,7 +537,7 @@ class Broker:
                                     topic = args[2]
 
                                     if (topic.split('/')[0] != username):
-                                        self.logger.warning("User attempting write to ACL outside namespace")
+                                        self.logger.error("User attempting write to ACL outside namespace")
                                         break
 
                                     # TODO: what should the perms for this be?
@@ -559,7 +559,7 @@ class Broker:
 
                                     yield from self.add_acl(username, client_deviceid, topics)
                                 else:
-                                    pass
+                                    self.logger.info("Command not supported!")
                             except IndexError:
                                 self.logger.error("Wrong config callback format")
                             break
@@ -680,6 +680,8 @@ class Broker:
                 else:
                     self.logger.debug("'%s' plugin result: %s" % (plugin.name, res))
         # If all plugins returned True, authentication is success
+        if auth_result:
+            self.logger.info("Authentication successful")
         return auth_result
 
     @asyncio.coroutine
@@ -716,6 +718,8 @@ class Broker:
                 else:
                     self.logger.debug("'%s' plugin result: %s" % (plugin.name, res))
         # If all plugins returned True, acl is success
+        if topic_result:
+            self.logger.info(f"{topic} ACL successful")
         return topic_result
 
     @asyncio.coroutine

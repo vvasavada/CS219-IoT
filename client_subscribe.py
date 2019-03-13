@@ -9,11 +9,10 @@ logger = logging.Logger("client_sub")
 @asyncio.coroutine
 def uptime_coro():
     C = MQTTClient()
-    yield from C.connect('mqtts://test1:test@0.0.0.0:8883', cafile='ca.crt')
-    # Subscribe to '$SYS/broker/uptime' with QOS=1
-    # Subscribe to '$SYS/broker/load/#' with QOS=2
+    yield from C.connect('mqtts://vaibhavagg2-device2:password-device2@0.0.0.0:8883', cafile='ca.crt')
     yield from C.subscribe([
-            ('a/b', QOS_1)
+            ('vaibhavagg2/test', QOS_1),
+            ('vaibhavagg2/device2/test', QOS_1)
          ])
     try:
         for i in range(1, 100):

@@ -21,7 +21,7 @@ C = MQTTClient(config=config)
 def test_coro():
     yield from C.connect('mqtts://vaibhavagg2-device1:password-device1@0.0.0.0:8883', cafile='ca.crt')
     tasks = [
-        asyncio.ensure_future(C.publish('vaibhavagg2/config', ' '.join(sys.argv[1:]).encode())),
+        asyncio.ensure_future(C.publish(sys.argv[1], b'Test message')),
     ]
     yield from asyncio.wait(tasks)
     logger.info("messages published")
@@ -30,7 +30,7 @@ def test_coro():
 
 if __name__ == '__main__':
     if (len(sys.argv) < 2):
-        print(f"Usage: {sys.argv[0]} cmd")
+        print(f"Usage: {sys.argv[0]} publish_topic")
         exit()
     formatter = "[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
     logging.basicConfig(level=logging.INFO, format=formatter)

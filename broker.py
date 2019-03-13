@@ -15,7 +15,7 @@ def main(*args, **kwargs):
         sys.exit(-1)
 
     formatter = "[%(asctime)s] :: %(levelname)s - %(message)s"
-    level = logging.DEBUG
+    level = logging.INFO
     logging.basicConfig(level=level, format=formatter)
 
     config = read_yaml_config(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'broker_config.yaml'))

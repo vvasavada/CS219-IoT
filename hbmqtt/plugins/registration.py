@@ -79,6 +79,8 @@ class RegistrationPlugin:
         username = kwargs['username']
         deviceid = kwargs['deviceid']
         devicekey = kwargs['devicekey']
+
+        self._read_password_file()
         
         if deviceid in self._users[username]['devices']:
             self.context.logger.error("Device registration failed: device already exists")
